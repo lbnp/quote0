@@ -46,8 +46,7 @@ pip install requests Pillow
 
 ## Platform Notes
 
-The image renderer uses Windows-specific font paths:
-- `C:\Windows\Fonts\seguiemj.ttf` (Segoe UI Emoji) for weather icons
-- `C:\Windows\Fonts\meiryo.ttc` (Meiryo) for Japanese text
+Font loading is cross-platform. `_load_font()` iterates `_EMOJI_FONT_CANDIDATES` and `_JP_FONT_CANDIDATES` (defined at module level) and returns the first match, so adding support for a new OS means appending to those lists.
 
-Running on non-Windows systems requires adjusting the font paths in `generate_image()`.
+- **Japanese**: macOS uses Hiragino Sans (built-in); Windows uses Meiryo (built-in); Linux needs `fonts-noto-cjk`.
+- **Emoji**: Noto Emoji (`NotoEmoji-Regular.ttf`) must be installed manually on macOS/Linux. On Windows, Segoe UI Emoji is used as the fallback. See README for install commands.

@@ -5,11 +5,35 @@ Generates a 296×152 monochrome PNG image from Google Calendar events and a 3-da
 ## Requirements
 
 - Python 3
-- Windows (uses Segoe UI Emoji and Meiryo fonts; adjust font paths in `generate_image.py` for other platforms)
+- Works on Windows, macOS, and Linux
 
 ```bash
 pip install -r requirements.txt
 ```
+
+### Fonts
+
+**Japanese text** is rendered with the first available font from this priority list:
+
+| Platform | Font |
+|---|---|
+| macOS | Hiragino Sans (built-in) |
+| Windows | Meiryo (built-in) |
+| Linux | Noto Sans CJK (`fonts-noto-cjk` package) |
+
+**Emoji** requires [Noto Emoji](https://fonts.google.com/noto/specimen/Noto+Emoji) (`NotoEmoji-Regular.ttf`), which is not bundled with any OS:
+
+```bash
+# macOS
+curl -L -o ~/Library/Fonts/NotoEmoji-Regular.ttf \
+  https://github.com/googlefonts/noto-emoji/raw/main/fonts/NotoEmoji-Regular.ttf
+
+# Linux
+sudo curl -L -o /usr/share/fonts/truetype/noto/NotoEmoji-Regular.ttf \
+  https://github.com/googlefonts/noto-emoji/raw/main/fonts/NotoEmoji-Regular.ttf
+```
+
+On Windows, place `NotoEmoji-Regular.ttf` in `C:\Windows\Fonts\` or use the built-in Segoe UI Emoji (already detected automatically).
 
 ## Usage
 

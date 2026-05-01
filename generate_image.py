@@ -12,6 +12,36 @@ from datetime import datetime, timedelta
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
+# Candidate font paths tried in order; first match wins.
+_EMOJI_FONT_CANDIDATES = [
+    # Noto Emoji (cross-platform, recommended for macOS/Linux)
+    os.path.expanduser("~/Library/Fonts/NotoEmoji-Regular.ttf"),
+    "/Library/Fonts/NotoEmoji-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoEmoji-Regular.ttf",
+    # Windows built-in
+    "C:/Windows/Fonts/seguiemj.ttf",
+    "C:/Windows/Fonts/NotoEmoji-Regular.ttf",
+]
+
+_JP_FONT_CANDIDATES = [
+    # macOS built-in (Hiragino Sans)
+    "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+    "/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+    # Windows built-in
+    "C:/Windows/Fonts/meiryo.ttc",
+    # Linux (Noto CJK)
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+]
+
+
+def _load_font(candidates, size):
+    for path in candidates:
+        try:
+            return ImageFont.truetype(path, size)
+        except (FileNotFoundError, OSError):
+            continue
+    return None
+
 
 # Weather code -> emoji mapping
 WEATHER_EMOJI = {
@@ -171,23 +201,15 @@ def generate_image(events, weather_data):
     draw = ImageDraw.Draw(img)
 
     # Load fonts
-    # Emoji font (Segoe UI Emoji on Windows)
-    emoji_font = None
-    try:
-        emoji_font = ImageFont.truetype("C:/Windows/Fonts/seguiemj.ttf", 14)
-    except (FileNotFoundError, OSError):
-        print("Warning: emoji font not found, falling back to default font.", file=sys.stderr)
+    emoji_font = _load_font(_EMOJI_FONT_CANDIDATES, 14)
+    if emoji_font is None:
+        print("Warning: no emoji font found. Install NotoEmoji-Regular.ttf for emoji support.", file=sys.stderr)
 
-    # Japanese font (Meiryo on Windows)
-    jp_font = None
-    try:
-        jp_font = ImageFont.truetype("C:/Windows/Fonts/meiryo.ttc", 11)
-        jp_font_bold = ImageFont.truetype("C:/Windows/Fonts/meiryo.ttc", 12)
-    except (FileNotFoundError, OSError):
-        # Fall back to default font if Meiryo is unavailable
+    jp_font = _load_font(_JP_FONT_CANDIDATES, 11)
+    if jp_font is None:
         jp_font = ImageFont.load_default()
-        jp_font_bold = jp_font
-        print("Warning: Meiryo font not found, using default font.", file=sys.stderr)
+        print("Warning: no Japanese font found, using default font.", file=sys.stderr)
+    jp_font_bold = _load_font(_JP_FONT_CANDIDATES, 12) or jp_font
 
     # Black
     black = (0, 0, 0)
