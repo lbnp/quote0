@@ -1,0 +1,4 @@
+config.json
+output.png
+__pycache__/
+*.pyc

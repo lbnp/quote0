@@ -4,6 +4,7 @@
 import argparse
 import base64
 import io
+import json
 import os
 import sys
 from datetime import date, datetime, timedelta
@@ -110,11 +111,29 @@ def parse_args():
         help="API key"
     )
     parser.add_argument(
+        "--config",
+        type=str,
+        default="config.json",
+        help="Path to JSON config file (default: config.json)"
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Dump raw iCal response and parsed events to stdout"
     )
     return parser.parse_args()
+
+
+def load_config(path):
+    """Load settings from a JSON config file. Returns an empty dict if the file doesn't exist."""
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+    except Exception as e:
+        print(f"Warning: could not read config file {path!r}: {e}", file=sys.stderr)
+        return {}
 
 
 def get_calendar_events(ical_url, debug=False):
@@ -413,23 +432,24 @@ def send_image(device_id, api_key, image):
 
 def main():
     args = parse_args()
+    config = load_config(args.config)
 
-    # Resolve values from args, env vars, or interactive prompt
-    ical_url = args.ical_url or os.environ.get("ICAL_URL")
+    # Resolve values: CLI arg → env var → config file → interactive prompt
+    ical_url = args.ical_url or os.environ.get("ICAL_URL") or config.get("ical_url")
     if not ical_url:
         ical_url = input("iCal URL: ").strip()
         if not ical_url:
             print("Error: iCal URL is required.", file=sys.stderr)
             sys.exit(1)
 
-    device_id = args.device_id or os.environ.get("DEVICE_ID")
+    device_id = args.device_id or os.environ.get("DEVICE_ID") or config.get("device_id")
     if not device_id:
         device_id = input("Device ID: ").strip()
         if not device_id:
             print("Error: Device ID is required.", file=sys.stderr)
             sys.exit(1)
 
-    api_key = args.api_key or os.environ.get("API_KEY")
+    api_key = args.api_key or os.environ.get("API_KEY") or config.get("api_key")
     if not api_key:
         api_key = input("API Key: ").strip()
         if not api_key:
