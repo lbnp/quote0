@@ -7,7 +7,7 @@ import io
 import os
 import re
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
@@ -166,11 +166,16 @@ def get_calendar_events(ical_url, debug=False):
                 current_event["summary"] = line[len("SUMMARY:"):]
             elif line.startswith("DTSTART"):
                 # DTSTART;VALUE=DATE:20260501 or DTSTART:20260501T100000Z
+                # or DTSTART;TZID=Asia/Tokyo:20260501T100000
+                tzid_match = re.search(r'TZID=([^:;]+)', line)
+                tzid = tzid_match.group(1) if tzid_match else None
                 dt_start = line.split(":")[-1]
-                current_event["dtstart"] = parse_ical_datetime(dt_start)
+                current_event["dtstart"] = parse_ical_datetime(dt_start, tzid=tzid)
             elif line.startswith("DTEND"):
+                tzid_match = re.search(r'TZID=([^:;]+)', line)
+                tzid = tzid_match.group(1) if tzid_match else None
                 dt_end = line.split(":")[-1]
-                current_event["dtend"] = parse_ical_datetime(dt_end)
+                current_event["dtend"] = parse_ical_datetime(dt_end, tzid=tzid)
             elif line.startswith("DESCRIPTION:"):
                 current_event["description"] = line[len("DESCRIPTION:"):]
 
@@ -188,18 +193,27 @@ def get_calendar_events(ical_url, debug=False):
     return events
 
 
-def parse_ical_datetime(dt_str):
-    """Parse an iCal datetime string."""
+def parse_ical_datetime(dt_str, tzid=None):
+    """Parse an iCal datetime string and return a naive local datetime."""
     dt_str = dt_str.strip()
-    # Datetime format: 20260501T100000
     if "T" in dt_str:
-        dt_str_clean = dt_str.replace("Z", "").replace("U", "")
+        is_utc = dt_str.endswith("Z")
+        dt_str_clean = dt_str.rstrip("Z").replace("U", "")
         try:
-            return datetime.strptime(dt_str_clean, "%Y%m%dT%H%M%S")
+            dt = datetime.strptime(dt_str_clean, "%Y%m%dT%H%M%S")
+            if is_utc:
+                dt = dt.replace(tzinfo=timezone.utc).astimezone().replace(tzinfo=None)
+            elif tzid:
+                try:
+                    from zoneinfo import ZoneInfo
+                    dt = dt.replace(tzinfo=ZoneInfo(tzid)).astimezone().replace(tzinfo=None)
+                except Exception:
+                    pass
+            return dt
         except ValueError:
             pass
 
-    # Date-only format: 20260501
+    # Date-only format: 20260501 (no timezone conversion needed)
     if len(dt_str) == 8:
         try:
             return datetime.strptime(dt_str, "%Y%m%d")
