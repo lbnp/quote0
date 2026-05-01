@@ -38,8 +38,13 @@ _JP_FONT_CANDIDATES = [
     "/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
     # Windows built-in
     "C:/Windows/Fonts/meiryo.ttc",
-    # Linux (Noto CJK)
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    # Linux — Bold first for better e-ink legibility (fonts-noto-cjk package)
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",       # Ubuntu/Debian
+    "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Bold.ttc",     # Fedora/RHEL
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",            # Arch
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",    # Ubuntu/Debian fallback
+    "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",  # Fedora/RHEL fallback
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",         # Arch fallback
 ]
 
 
