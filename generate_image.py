@@ -17,8 +17,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 # Candidate font paths tried in order; first match wins.
 _EMOJI_FONT_CANDIDATES = [
-    # Ubuntu/Linux — NotoEmoji-Regular.ttf (fonts-noto package)
-    "/usr/share/fonts/truetype/noto/NotoEmoji-Regular.ttf",
+    # Ubuntu/Debian — Symbola (fonts-symbola package)
+    "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf",
     # macOS — NotoEmoji[wght].ttf (current monochrome outline font)
     os.path.expanduser("~/Library/Fonts/NotoEmoji[wght].ttf"),
     "/Library/Fonts/NotoEmoji[wght].ttf",

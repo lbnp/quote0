@@ -24,8 +24,8 @@ pip install -r requirements.txt
 **Emoji** requires a Noto Emoji font, which is not bundled with any OS:
 
 ```bash
-# Ubuntu/Debian — NotoEmoji-Regular.ttf via apt
-sudo apt install fonts-noto
+# Ubuntu/Debian — Symbola (fonts-symbola package)
+sudo apt install fonts-symbola
 
 # macOS — NotoEmoji[wght].ttf (current monochrome outline font)
 curl -L -o ~/Library/Fonts/"NotoEmoji[wght].ttf" \
