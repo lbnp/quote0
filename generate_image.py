@@ -128,6 +128,11 @@ def parse_args():
         help="Path to JSON config file (default: config.json)"
     )
     parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Build the image but do not send it to the device"
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Dump raw iCal response and parsed events to stdout"
@@ -474,9 +479,12 @@ def main():
     weather_data = get_weather(timezone=tz_name)
     image = generate_image(events, weather_data, debug=args.debug)
 
-    if args.debug:
+    if args.debug or args.dry_run:
         image.save("output.png")
         print("Image saved: output.png")
+
+    if args.dry_run:
+        return
 
     result = send_image(device_id, api_key, image, debug=args.debug)
 
