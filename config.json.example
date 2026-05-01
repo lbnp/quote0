@@ -1,5 +1,6 @@
 {
   "ical_url": "https://calendar.google.com/calendar/ical/...",
   "device_id": "your-device-id",
-  "api_key": "your-api-key"
+  "api_key": "your-api-key",
+  "timezone": "Asia/Tokyo"
 }

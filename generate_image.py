@@ -8,6 +8,7 @@ import json
 import os
 import sys
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import recurring_ical_events
 import requests
@@ -116,6 +117,11 @@ def parse_args():
         help="API key"
     )
     parser.add_argument(
+        "--timezone",
+        type=str,
+        help="Timezone name, e.g. Asia/Tokyo (default: Asia/Tokyo)"
+    )
+    parser.add_argument(
         "--config",
         type=str,
         default="config.json",
@@ -141,7 +147,7 @@ def load_config(path):
         return {}
 
 
-def get_calendar_events(ical_url, debug=False):
+def get_calendar_events(ical_url, tz, debug=False):
     """Fetch calendar events from an iCal URL, including recurring events."""
     try:
         response = requests.get(ical_url, timeout=10)
@@ -168,7 +174,7 @@ def get_calendar_events(ical_url, debug=False):
         print(f"Failed to parse iCal data: {e}", file=sys.stderr)
         return []
 
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = datetime.now(tz=tz).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
     end_date = today + timedelta(days=90)
 
     try:
@@ -189,7 +195,7 @@ def get_calendar_events(ical_url, debug=False):
         if isinstance(dt, date) and not isinstance(dt, datetime):
             dt = datetime(dt.year, dt.month, dt.day)
         elif dt.tzinfo is not None:
-            dt = dt.astimezone().replace(tzinfo=None)
+            dt = dt.astimezone(tz).replace(tzinfo=None)
         events.append({"summary": summary, "dtstart": dt})
 
     events.sort(key=lambda e: e["dtstart"])
@@ -203,7 +209,7 @@ def get_calendar_events(ical_url, debug=False):
     return events
 
 
-def get_weather(latitude=35.6762, longitude=139.6503, days=3):
+def get_weather(latitude=35.6762, longitude=139.6503, days=3, timezone="Asia/Tokyo"):
     """Fetch weather forecast data from the Open-Meteo API."""
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
@@ -211,7 +217,7 @@ def get_weather(latitude=35.6762, longitude=139.6503, days=3):
         "longitude": longitude,
         "daily": "weather_code,temperature_2m_max,temperature_2m_min",
         "forecast_days": days,
-        "timezone": "Asia/Tokyo"
+        "timezone": timezone,
     }
 
     try:
@@ -457,8 +463,15 @@ def main():
             print("Error: API Key is required.", file=sys.stderr)
             sys.exit(1)
 
-    events = get_calendar_events(ical_url, debug=args.debug)
-    weather_data = get_weather()
+    tz_name = args.timezone or os.environ.get("TIMEZONE") or config.get("timezone", "Asia/Tokyo")
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        print(f"Error: unknown timezone {tz_name!r}.", file=sys.stderr)
+        sys.exit(1)
+
+    events = get_calendar_events(ical_url, tz=tz, debug=args.debug)
+    weather_data = get_weather(timezone=tz_name)
     image = generate_image(events, weather_data, debug=args.debug)
 
     if args.debug:
