@@ -376,17 +376,14 @@ def generate_image(events, weather_data, debug=False):
     return img_mono
 
 
-def send_image(device_id, api_key, image):
+def send_image(device_id, api_key, image, debug=False):
     """Base64-encode the PNG image and send it to the device API."""
-    # Export image to PNG bytes
     img_bytes = io.BytesIO()
     image.save(img_bytes, format="PNG")
     img_bytes.seek(0)
 
-    # Base64-encode
     image_b64 = base64.b64encode(img_bytes.read()).decode("utf-8")
 
-    # API endpoint
     url = f"https://dot.mindreset.tech/api/authV2/open/device/{device_id}/image"
 
     payload = {
@@ -401,34 +398,33 @@ def send_image(device_id, api_key, image):
         "Content-Type": "application/json"
     }
 
-    # Log request details
-    print("\n========== API Request ==========")
-    print(f"POST {url}")
-    print("-------- Headers --------")
-    for key, value in headers.items():
-        print(f"  {key}: {value}")
-    print("-------- Body --------")
-    print(f'  {{"image": "{image_b64[:100]}...", "border": {payload["border"]}, "ditherType": "{payload["ditherType"]}", "refreshNow": {"true" if payload["refreshNow"] else "false"}}}')
-    print("=================================\n")
+    if debug:
+        print("\n========== API Request ==========")
+        print(f"POST {url}")
+        print("-------- Headers --------")
+        for key, value in headers.items():
+            print(f"  {key}: {value}")
+        print("-------- Body --------")
+        print(f'  {{"image": "{image_b64[:100]}...", "border": {payload["border"]}, "ditherType": "{payload["ditherType"]}", "refreshNow": {"true" if payload["refreshNow"] else "false"}}}')
+        print("=================================\n")
 
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=30)
-        print(response.text)
-        # Log response details
-        print("\n========== API Response ==========")
-        print(f"Status: {response.status_code}")
-        print("-------- Response Headers --------")
-        for key, value in response.headers.items():
-            print(f"  {key}: {value}")
-        print("-------- Response Body --------")
-        try:
-            print(f"  {response.json()}")
-        except Exception:
-            print(f"  {response.text}")
-        print("==================================\n")
+
+        if debug:
+            print("\n========== API Response ==========")
+            print(f"Status: {response.status_code}")
+            print("-------- Response Headers --------")
+            for key, value in response.headers.items():
+                print(f"  {key}: {value}")
+            print("-------- Response Body --------")
+            try:
+                print(f"  {response.json()}")
+            except Exception:
+                print(f"  {response.text}")
+            print("==================================\n")
 
         response.raise_for_status()
-        print(f"Image sent successfully: HTTP {response.status_code}")
         return response
     except requests.RequestException as e:
         print(f"Failed to send image: {e}", file=sys.stderr)
@@ -461,27 +457,17 @@ def main():
             print("Error: API Key is required.", file=sys.stderr)
             sys.exit(1)
 
-    print("Fetching calendar events...")
     events = get_calendar_events(ical_url, debug=args.debug)
-    print(f"Events found: {len(events)}")
-
-    print("Fetching weather forecast...")
     weather_data = get_weather()
-    print(f"Forecast days: {len(weather_data.get('time', []))}")
-
-    print("Generating image...")
     image = generate_image(events, weather_data, debug=args.debug)
 
-    # Save locally for debugging
-    image.save("output.png")
-    print("Image saved: output.png")
+    if args.debug:
+        image.save("output.png")
+        print("Image saved: output.png")
 
-    print("Sending image...")
-    result = send_image(device_id, api_key, image)
+    result = send_image(device_id, api_key, image, debug=args.debug)
 
-    if result:
-        print("Done!")
-    else:
+    if not result:
         print("Failed to send image.", file=sys.stderr)
         sys.exit(1)
 
