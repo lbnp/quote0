@@ -14,12 +14,17 @@ from PIL import Image, ImageDraw, ImageFont
 
 # Candidate font paths tried in order; first match wins.
 _EMOJI_FONT_CANDIDATES = [
-    # Noto Emoji (cross-platform, recommended for macOS/Linux)
+    # NotoEmoji[wght].ttf — current monochrome outline font (replaces NotoEmoji-Regular.ttf)
+    os.path.expanduser("~/Library/Fonts/NotoEmoji[wght].ttf"),
+    "/Library/Fonts/NotoEmoji[wght].ttf",
+    "/usr/share/fonts/truetype/noto/NotoEmoji[wght].ttf",
+    # Legacy filename (older installations)
     os.path.expanduser("~/Library/Fonts/NotoEmoji-Regular.ttf"),
     "/Library/Fonts/NotoEmoji-Regular.ttf",
     "/usr/share/fonts/truetype/noto/NotoEmoji-Regular.ttf",
     # Windows built-in
     "C:/Windows/Fonts/seguiemj.ttf",
+    "C:/Windows/Fonts/NotoEmoji[wght].ttf",
     "C:/Windows/Fonts/NotoEmoji-Regular.ttf",
 ]
 
@@ -34,11 +39,16 @@ _JP_FONT_CANDIDATES = [
 ]
 
 
-def _load_font(candidates, size):
+def _load_font(candidates, size, debug=False):
     for path in candidates:
         try:
-            return ImageFont.truetype(path, size)
-        except (FileNotFoundError, OSError):
+            font = ImageFont.truetype(path, size)
+            if debug:
+                print(f"  [font] loaded: {path}", file=sys.stderr)
+            return font
+        except Exception as e:
+            if debug:
+                print(f"  [font] failed {path}: {e}", file=sys.stderr)
             continue
     return None
 
@@ -96,10 +106,15 @@ def parse_args():
         type=str,
         help="API key"
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Dump raw iCal response and parsed events to stdout"
+    )
     return parser.parse_args()
 
 
-def get_calendar_events(ical_url):
+def get_calendar_events(ical_url, debug=False):
     """Fetch calendar events from an iCal URL."""
     try:
         response = requests.get(ical_url, timeout=10)
@@ -109,8 +124,19 @@ def get_calendar_events(ical_url):
         print(f"Failed to fetch calendar: {e}", file=sys.stderr)
         return []
 
+    if debug:
+        print("\n========== iCal Raw Response ==========")
+        print(f"Status: {response.status_code}")
+        print(f"Content-Type: {response.headers.get('Content-Type', 'unknown')}")
+        print(f"Length: {len(ical_data)} chars")
+        print("-------- Body (first 2000 chars) --------")
+        print(ical_data[:2000])
+        if len(ical_data) > 2000:
+            print(f"... ({len(ical_data) - 2000} more chars)")
+        print("=======================================\n")
+
     events = []
-    lines = ical_data.split("\n")
+    lines = ical_data.splitlines()  # handles both \r\n (RFC 5545) and \n
 
     in_event = False
     current_event = {}
@@ -148,11 +174,23 @@ def get_calendar_events(ical_url):
             elif line.startswith("DESCRIPTION:"):
                 current_event["description"] = line[len("DESCRIPTION:"):]
 
+    # Keep only upcoming events (today onwards), sorted by start date
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    events = [e for e in events if e.get("dtstart") and e["dtstart"] >= today]
+    events.sort(key=lambda e: e["dtstart"])
+
+    if debug:
+        print(f"Parsed {len(events)} upcoming VEVENT(s):")
+        for i, ev in enumerate(events):
+            print(f"  [{i}] dtstart={ev.get('dtstart')} summary={ev.get('summary')!r}")
+        print()
+
     return events
 
 
 def parse_ical_datetime(dt_str):
     """Parse an iCal datetime string."""
+    dt_str = dt_str.strip()
     # Datetime format: 20260501T100000
     if "T" in dt_str:
         dt_str_clean = dt_str.replace("Z", "").replace("U", "")
@@ -192,7 +230,7 @@ def get_weather(latitude=35.6762, longitude=139.6503, days=3):
         return {}
 
 
-def generate_image(events, weather_data):
+def generate_image(events, weather_data, debug=False):
     """Generate a PNG image from calendar events and weather data."""
     width, height = 296, 152
 
@@ -201,15 +239,17 @@ def generate_image(events, weather_data):
     draw = ImageDraw.Draw(img)
 
     # Load fonts
-    emoji_font = _load_font(_EMOJI_FONT_CANDIDATES, 14)
+    emoji_font = _load_font(_EMOJI_FONT_CANDIDATES, 14, debug=debug)
     if emoji_font is None:
-        print("Warning: no emoji font found. Install NotoEmoji-Regular.ttf for emoji support.", file=sys.stderr)
+        tried = "\n  ".join(_EMOJI_FONT_CANDIDATES)
+        print(f"Warning: no emoji font found. Paths tried:\n  {tried}", file=sys.stderr)
 
-    jp_font = _load_font(_JP_FONT_CANDIDATES, 11)
+    jp_font = _load_font(_JP_FONT_CANDIDATES, 11, debug=debug)
     if jp_font is None:
         jp_font = ImageFont.load_default()
-        print("Warning: no Japanese font found, using default font.", file=sys.stderr)
-    jp_font_bold = _load_font(_JP_FONT_CANDIDATES, 12) or jp_font
+        tried = "\n  ".join(_JP_FONT_CANDIDATES)
+        print(f"Warning: no Japanese font found, using default. Paths tried:\n  {tried}", file=sys.stderr)
+    jp_font_bold = _load_font(_JP_FONT_CANDIDATES, 12, debug=debug) or jp_font
 
     # Black
     black = (0, 0, 0)
@@ -427,7 +467,7 @@ def main():
             sys.exit(1)
 
     print("Fetching calendar events...")
-    events = get_calendar_events(ical_url)
+    events = get_calendar_events(ical_url, debug=args.debug)
     print(f"Events found: {len(events)}")
 
     print("Fetching weather forecast...")
@@ -435,7 +475,7 @@ def main():
     print(f"Forecast days: {len(weather_data.get('time', []))}")
 
     print("Generating image...")
-    image = generate_image(events, weather_data)
+    image = generate_image(events, weather_data, debug=args.debug)
 
     # Save locally for debugging
     image.save("output.png")

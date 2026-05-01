@@ -21,19 +21,19 @@ pip install -r requirements.txt
 | Windows | Meiryo (built-in) |
 | Linux | Noto Sans CJK (`fonts-noto-cjk` package) |
 
-**Emoji** requires [Noto Emoji](https://fonts.google.com/noto/specimen/Noto+Emoji) (`NotoEmoji-Regular.ttf`), which is not bundled with any OS:
+**Emoji** requires [Noto Emoji](https://fonts.google.com/noto/specimen/Noto+Emoji) (`NotoEmoji[wght].ttf`), which is not bundled with any OS:
 
 ```bash
 # macOS
-curl -L -o ~/Library/Fonts/NotoEmoji-Regular.ttf \
-  https://github.com/googlefonts/noto-emoji/raw/main/fonts/NotoEmoji-Regular.ttf
+curl -L -o ~/Library/Fonts/"NotoEmoji[wght].ttf" \
+  "https://github.com/google/fonts/raw/main/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf"
 
 # Linux
-sudo curl -L -o /usr/share/fonts/truetype/noto/NotoEmoji-Regular.ttf \
-  https://github.com/googlefonts/noto-emoji/raw/main/fonts/NotoEmoji-Regular.ttf
+sudo curl -L -o /usr/share/fonts/truetype/noto/"NotoEmoji[wght].ttf" \
+  "https://github.com/google/fonts/raw/main/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf"
 ```
 
-On Windows, place `NotoEmoji-Regular.ttf` in `C:\Windows\Fonts\` or use the built-in Segoe UI Emoji (already detected automatically).
+On Windows, place `NotoEmoji[wght].ttf` in `C:\Windows\Fonts\` or use the built-in Segoe UI Emoji (already detected automatically).
 
 ## Usage
 
