@@ -5,11 +5,12 @@ import argparse
 import base64
 import io
 import os
-import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
+import recurring_ical_events
 import requests
+from icalendar import Calendar
 from PIL import Image, ImageDraw, ImageFont
 
 # Candidate font paths tried in order; first match wins.
@@ -115,11 +116,11 @@ def parse_args():
 
 
 def get_calendar_events(ical_url, debug=False):
-    """Fetch calendar events from an iCal URL."""
+    """Fetch calendar events from an iCal URL, including recurring events."""
     try:
         response = requests.get(ical_url, timeout=10)
         response.raise_for_status()
-        ical_data = response.text
+        ical_data = response.content
     except requests.RequestException as e:
         print(f"Failed to fetch calendar: {e}", file=sys.stderr)
         return []
@@ -128,99 +129,52 @@ def get_calendar_events(ical_url, debug=False):
         print("\n========== iCal Raw Response ==========")
         print(f"Status: {response.status_code}")
         print(f"Content-Type: {response.headers.get('Content-Type', 'unknown')}")
-        print(f"Length: {len(ical_data)} chars")
+        print(f"Length: {len(ical_data)} bytes")
         print("-------- Body (first 2000 chars) --------")
-        print(ical_data[:2000])
+        print(ical_data[:2000].decode("utf-8", errors="replace"))
         if len(ical_data) > 2000:
-            print(f"... ({len(ical_data) - 2000} more chars)")
+            print(f"... ({len(ical_data) - 2000} more bytes)")
         print("=======================================\n")
 
-    events = []
-    lines = ical_data.splitlines()  # handles both \r\n (RFC 5545) and \n
+    try:
+        cal = Calendar.from_ical(ical_data)
+    except Exception as e:
+        print(f"Failed to parse iCal data: {e}", file=sys.stderr)
+        return []
 
-    in_event = False
-    current_event = {}
-
-    # Extract VEVENT records from the iCal data
-    for line in lines:
-        # Handle line folding (RFC 5545)
-        if line.startswith("\t") or line.startswith(" "):
-            current_line = line.lstrip("\t ").lstrip(" ")
-            if current_line and "summary" in current_event:
-                current_event["summary"] += current_line
-            continue
-
-        if line.startswith("BEGIN:VEVENT"):
-            in_event = True
-            current_event = {}
-            continue
-
-        if line.startswith("END:VEVENT"):
-            in_event = False
-            if current_event.get("summary") and current_event.get("dtstart"):
-                events.append(current_event)
-            continue
-
-        if in_event:
-            if line.startswith("SUMMARY:"):
-                current_event["summary"] = line[len("SUMMARY:"):]
-            elif line.startswith("DTSTART"):
-                # DTSTART;VALUE=DATE:20260501 or DTSTART:20260501T100000Z
-                # or DTSTART;TZID=Asia/Tokyo:20260501T100000
-                tzid_match = re.search(r'TZID=([^:;]+)', line)
-                tzid = tzid_match.group(1) if tzid_match else None
-                dt_start = line.split(":")[-1]
-                current_event["dtstart"] = parse_ical_datetime(dt_start, tzid=tzid)
-            elif line.startswith("DTEND"):
-                tzid_match = re.search(r'TZID=([^:;]+)', line)
-                tzid = tzid_match.group(1) if tzid_match else None
-                dt_end = line.split(":")[-1]
-                current_event["dtend"] = parse_ical_datetime(dt_end, tzid=tzid)
-            elif line.startswith("DESCRIPTION:"):
-                current_event["description"] = line[len("DESCRIPTION:"):]
-
-    # Keep only upcoming events (today onwards), sorted by start date
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    events = [e for e in events if e.get("dtstart") and e["dtstart"] >= today]
+    end_date = today + timedelta(days=90)
+
+    try:
+        occurrences = recurring_ical_events.of(cal).between(today, end_date)
+    except Exception as e:
+        print(f"Failed to expand recurring events: {e}", file=sys.stderr)
+        return []
+
+    events = []
+    for component in occurrences:
+        if component.name != "VEVENT":
+            continue
+        summary = str(component.get("SUMMARY", "(無題)"))
+        dtstart_prop = component.get("DTSTART")
+        if not dtstart_prop:
+            continue
+        dt = dtstart_prop.dt
+        if isinstance(dt, date) and not isinstance(dt, datetime):
+            dt = datetime(dt.year, dt.month, dt.day)
+        elif dt.tzinfo is not None:
+            dt = dt.astimezone().replace(tzinfo=None)
+        events.append({"summary": summary, "dtstart": dt})
+
     events.sort(key=lambda e: e["dtstart"])
 
     if debug:
-        print(f"Parsed {len(events)} upcoming VEVENT(s):")
+        print(f"Parsed {len(events)} upcoming VEVENT(s) (incl. recurrences):")
         for i, ev in enumerate(events):
             print(f"  [{i}] dtstart={ev.get('dtstart')} summary={ev.get('summary')!r}")
         print()
 
     return events
-
-
-def parse_ical_datetime(dt_str, tzid=None):
-    """Parse an iCal datetime string and return a naive local datetime."""
-    dt_str = dt_str.strip()
-    if "T" in dt_str:
-        is_utc = dt_str.endswith("Z")
-        dt_str_clean = dt_str.rstrip("Z").replace("U", "")
-        try:
-            dt = datetime.strptime(dt_str_clean, "%Y%m%dT%H%M%S")
-            if is_utc:
-                dt = dt.replace(tzinfo=timezone.utc).astimezone().replace(tzinfo=None)
-            elif tzid:
-                try:
-                    from zoneinfo import ZoneInfo
-                    dt = dt.replace(tzinfo=ZoneInfo(tzid)).astimezone().replace(tzinfo=None)
-                except Exception:
-                    pass
-            return dt
-        except ValueError:
-            pass
-
-    # Date-only format: 20260501 (no timezone conversion needed)
-    if len(dt_str) == 8:
-        try:
-            return datetime.strptime(dt_str, "%Y%m%d")
-        except ValueError:
-            pass
-
-    return None
 
 
 def get_weather(latitude=35.6762, longitude=139.6503, days=3):
