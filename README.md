@@ -21,15 +21,14 @@ pip install -r requirements.txt
 | Windows | Meiryo (built-in) |
 | Linux | Noto Sans CJK (`fonts-noto-cjk` package) |
 
-**Emoji** requires [Noto Emoji](https://fonts.google.com/noto/specimen/Noto+Emoji) (`NotoEmoji[wght].ttf`), which is not bundled with any OS:
+**Emoji** requires a Noto Emoji font, which is not bundled with any OS:
 
 ```bash
-# macOS
-curl -L -o ~/Library/Fonts/"NotoEmoji[wght].ttf" \
-  "https://github.com/google/fonts/raw/main/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf"
+# Ubuntu/Debian — NotoEmoji-Regular.ttf via apt
+sudo apt install fonts-noto
 
-# Linux
-sudo curl -L -o /usr/share/fonts/truetype/noto/"NotoEmoji[wght].ttf" \
+# macOS — NotoEmoji[wght].ttf (current monochrome outline font)
+curl -L -o ~/Library/Fonts/"NotoEmoji[wght].ttf" \
   "https://github.com/google/fonts/raw/main/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf"
 ```
 

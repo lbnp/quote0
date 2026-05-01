@@ -17,14 +17,14 @@ from PIL import Image, ImageDraw, ImageFont
 
 # Candidate font paths tried in order; first match wins.
 _EMOJI_FONT_CANDIDATES = [
-    # NotoEmoji[wght].ttf — current monochrome outline font (replaces NotoEmoji-Regular.ttf)
+    # Ubuntu/Linux — NotoEmoji-Regular.ttf (fonts-noto package)
+    "/usr/share/fonts/truetype/noto/NotoEmoji-Regular.ttf",
+    # macOS — NotoEmoji[wght].ttf (current monochrome outline font)
     os.path.expanduser("~/Library/Fonts/NotoEmoji[wght].ttf"),
     "/Library/Fonts/NotoEmoji[wght].ttf",
-    "/usr/share/fonts/truetype/noto/NotoEmoji[wght].ttf",
-    # Legacy filename (older installations)
+    # macOS legacy filename
     os.path.expanduser("~/Library/Fonts/NotoEmoji-Regular.ttf"),
     "/Library/Fonts/NotoEmoji-Regular.ttf",
-    "/usr/share/fonts/truetype/noto/NotoEmoji-Regular.ttf",
     # Windows built-in
     "C:/Windows/Fonts/seguiemj.ttf",
     "C:/Windows/Fonts/NotoEmoji[wght].ttf",
