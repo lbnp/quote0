@@ -30,7 +30,9 @@ _EMOJI_FONT_CANDIDATES = [
 ]
 
 _JP_FONT_CANDIDATES = [
-    # macOS built-in (Hiragino Sans)
+    # macOS built-in (Hiragino Sans) — W6 for better legibility on e-ink
+    "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+    "/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
     "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
     "/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
     # Windows built-in
