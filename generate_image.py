@@ -446,27 +446,26 @@ def main():
     args = parse_args()
     config = load_config(args.config)
 
-    # Resolve values: CLI arg → env var → config file → interactive prompt
-    ical_url = args.ical_url or os.environ.get("ICAL_URL") or config.get("ical_url")
-    if not ical_url:
-        ical_url = input("iCal URL: ").strip()
-        if not ical_url:
-            print("Error: iCal URL is required.", file=sys.stderr)
-            sys.exit(1)
+    interactive = sys.stdin.isatty()
 
-    device_id = args.device_id or os.environ.get("DEVICE_ID") or config.get("device_id")
-    if not device_id:
-        device_id = input("Device ID: ").strip()
-        if not device_id:
-            print("Error: Device ID is required.", file=sys.stderr)
-            sys.exit(1)
+    def resolve(value, env_key, config_key, prompt):
+        result = value or os.environ.get(env_key) or config.get(config_key)
+        if not result:
+            if interactive:
+                result = input(f"{prompt}: ").strip()
+            if not result:
+                print(
+                    f"Error: {prompt} is required. "
+                    f"Use --{prompt.lower().replace(' ', '-')}, "
+                    f"{env_key} env var, or config.json.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+        return result
 
-    api_key = args.api_key or os.environ.get("API_KEY") or config.get("api_key")
-    if not api_key:
-        api_key = input("API Key: ").strip()
-        if not api_key:
-            print("Error: API Key is required.", file=sys.stderr)
-            sys.exit(1)
+    ical_url = resolve(args.ical_url, "ICAL_URL", "ical_url", "iCal URL")
+    device_id = resolve(args.device_id, "DEVICE_ID", "device_id", "Device ID")
+    api_key = resolve(args.api_key, "API_KEY", "api_key", "API Key")
 
     tz_name = args.timezone or os.environ.get("TIMEZONE") or config.get("timezone", "Asia/Tokyo")
     try:
