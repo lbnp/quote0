@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""iCalカレンダーと天気予報からPNG画像を生成しAPIに送信するスクリプト"""
+"""Script to generate a PNG image from iCal calendar events and weather forecast, then send it to an API."""
 
 import argparse
 import base64
@@ -13,23 +13,23 @@ import requests
 from PIL import Image, ImageDraw, ImageFont
 
 
-# 天気コード -> 絵文字 マッピング
+# Weather code -> emoji mapping
 WEATHER_EMOJI = {
-    0: "☀️", 1: "☀️",  # 晴れ
-    2: "⛅", 3: "☁️",  # 曇り
-    45: "🌫️", 48: "🌫️",  # 霧
-    51: "🌦️", 53: "🌦️", 55: "🌧️",  # 霧雨
-    56: "🌧️", 57: "🌧️",  # 凍雨
-    61: "🌧️", 63: "🌧️", 65: "🌧️",  # 雨
-    66: "🌧️", 67: "🌧️",  # 凍雨
-    71: "🌨️", 73: "🌨️", 75: "🌨️",  # 雪
-    77: "🌨️",  # 雪粒
-    80: "🌦️", 81: "🌧️", 82: "🌧️",  # 驟雨
-    85: "🌨️", 86: "🌨️",  # 驟雪
-    95: "⛈️", 96: "⛈️", 99: "⛈️",  # 雷雨
+    0: "☀️", 1: "☀️",  # Clear
+    2: "⛅", 3: "☁️",  # Cloudy
+    45: "🌫️", 48: "🌫️",  # Fog
+    51: "🌦️", 53: "🌦️", 55: "🌧️",  # Drizzle
+    56: "🌧️", 57: "🌧️",  # Freezing drizzle
+    61: "🌧️", 63: "🌧️", 65: "🌧️",  # Rain
+    66: "🌧️", 67: "🌧️",  # Freezing rain
+    71: "🌨️", 73: "🌨️", 75: "🌨️",  # Snow
+    77: "🌨️",  # Snow grains
+    80: "🌦️", 81: "🌧️", 82: "🌧️",  # Rain showers
+    85: "🌨️", 86: "🌨️",  # Snow showers
+    95: "⛈️", 96: "⛈️", 99: "⛈️",  # Thunderstorm
 }
 
-# 天気コード -> 日本語テキスト
+# Weather code -> display text (Japanese)
 WEATHER_TEXT = {
     0: "晴れ", 1: "晴れ",
     2: "曇り晴れ", 3: "曇り",
@@ -47,69 +47,69 @@ WEATHER_TEXT = {
 
 
 def parse_args():
-    """コマンドライン引数をパースする"""
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="iCalカレンダーと天気予報からPNG画像を生成しAPIに送信する"
+        description="Generate a PNG image from iCal calendar events and weather forecast, then send it to an API"
     )
     parser.add_argument(
         "--ical-url",
         type=str,
-        help="Google CalendarのiCal URL"
+        help="Google Calendar iCal URL"
     )
     parser.add_argument(
         "--device-id",
         type=str,
-        help="デバイス固有ID"
+        help="Device unique ID"
     )
     parser.add_argument(
         "--api-key",
         type=str,
-        help="APIキー"
+        help="API key"
     )
     return parser.parse_args()
 
 
 def get_calendar_events(ical_url):
-    """iCal URLからカレンダーイベントを取得する"""
+    """Fetch calendar events from an iCal URL."""
     try:
         response = requests.get(ical_url, timeout=10)
         response.raise_for_status()
         ical_data = response.text
     except requests.RequestException as e:
-        print(f"カレンダーの取得に失敗しました: {e}", file=sys.stderr)
+        print(f"Failed to fetch calendar: {e}", file=sys.stderr)
         return []
 
     events = []
     lines = ical_data.split("\n")
-    
+
     in_event = False
     current_event = {}
-    
-    # iCalのVEVENTから情報を抽出
+
+    # Extract VEVENT records from the iCal data
     for line in lines:
-        # 行継続の処理 (RFC 5545)
+        # Handle line folding (RFC 5545)
         if line.startswith("\t") or line.startswith(" "):
             current_line = line.lstrip("\t ").lstrip(" ")
             if current_line and "summary" in current_event:
                 current_event["summary"] += current_line
             continue
-        
+
         if line.startswith("BEGIN:VEVENT"):
             in_event = True
             current_event = {}
             continue
-        
+
         if line.startswith("END:VEVENT"):
             in_event = False
             if current_event.get("summary") and current_event.get("dtstart"):
                 events.append(current_event)
             continue
-        
+
         if in_event:
             if line.startswith("SUMMARY:"):
                 current_event["summary"] = line[len("SUMMARY:"):]
             elif line.startswith("DTSTART"):
-                # DTSTART;VALUE=DATE:20260501 または DTSTART:20260501T100000Z
+                # DTSTART;VALUE=DATE:20260501 or DTSTART:20260501T100000Z
                 dt_start = line.split(":")[-1]
                 current_event["dtstart"] = parse_ical_datetime(dt_start)
             elif line.startswith("DTEND"):
@@ -117,32 +117,32 @@ def get_calendar_events(ical_url):
                 current_event["dtend"] = parse_ical_datetime(dt_end)
             elif line.startswith("DESCRIPTION:"):
                 current_event["description"] = line[len("DESCRIPTION:"):]
-    
+
     return events
 
 
 def parse_ical_datetime(dt_str):
-    """iCal形式の日時文字列をパースする"""
-    # 日時形式: 20260501T100000
+    """Parse an iCal datetime string."""
+    # Datetime format: 20260501T100000
     if "T" in dt_str:
         dt_str_clean = dt_str.replace("Z", "").replace("U", "")
         try:
             return datetime.strptime(dt_str_clean, "%Y%m%dT%H%M%S")
         except ValueError:
             pass
-    
-    # 日付のみ形式: 20260501
+
+    # Date-only format: 20260501
     if len(dt_str) == 8:
         try:
             return datetime.strptime(dt_str, "%Y%m%d")
         except ValueError:
             pass
-    
+
     return None
 
 
 def get_weather(latitude=35.6762, longitude=139.6503, days=3):
-    """天気予報APIから情報を取得する"""
+    """Fetch weather forecast data from the Open-Meteo API."""
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
         "latitude": latitude,
@@ -151,67 +151,67 @@ def get_weather(latitude=35.6762, longitude=139.6503, days=3):
         "forecast_days": days,
         "timezone": "Asia/Tokyo"
     }
-    
+
     try:
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
         return data.get("daily", {})
     except requests.RequestException as e:
-        print(f"天気情報の取得に失敗しました: {e}", file=sys.stderr)
+        print(f"Failed to fetch weather data: {e}", file=sys.stderr)
         return {}
 
 
 def generate_image(events, weather_data):
-    """カレンダーイベントと天気データからPNG画像を生成する"""
+    """Generate a PNG image from calendar events and weather data."""
     width, height = 296, 152
-    
-    # 白背景の画像を作成
+
+    # Create a white-background image
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
-    
-    # フォントの読み込み
-    # 絵文字用フォント (WindowsのSegoe UI Emoji)
+
+    # Load fonts
+    # Emoji font (Segoe UI Emoji on Windows)
     emoji_font = None
     try:
         emoji_font = ImageFont.truetype("C:/Windows/Fonts/seguiemj.ttf", 14)
     except (FileNotFoundError, OSError):
-        print("警告: 絵文字フォントが見つかりません。代わりにデフォルトフォントを使用します。", file=sys.stderr)
-    
-    # 日本語用フォント (WindowsのMeiryo)
+        print("Warning: emoji font not found, falling back to default font.", file=sys.stderr)
+
+    # Japanese font (Meiryo on Windows)
     jp_font = None
     try:
         jp_font = ImageFont.truetype("C:/Windows/Fonts/meiryo.ttc", 11)
         jp_font_bold = ImageFont.truetype("C:/Windows/Fonts/meiryo.ttc", 12)
     except (FileNotFoundError, OSError):
-        # フォントがない場合はデフォルトフォントにフォールバック
+        # Fall back to default font if Meiryo is unavailable
         jp_font = ImageFont.load_default()
         jp_font_bold = jp_font
-        print("警告: Meiryoフォントが見つかりません。デフォルトフォントを使用します。", file=sys.stderr)
-    
-    # 黒色
+        print("Warning: Meiryo font not found, using default font.", file=sys.stderr)
+
+    # Black
     black = (0, 0, 0)
-    
-    # 描画開始位置
+
+    # Starting draw position
     y_pos = 4
-    
-    # ヘッダー: "スケジュール  天気予報"
+
+    # Header row
     header = "スケジュール                 天気予報"
     try:
         draw.text((4, y_pos), header, font=jp_font_bold, fill=black)
         y_pos += 16
     except Exception:
         y_pos += 14
-    
-    # 区切り線
+
+    # Divider line
     draw.line([(4, y_pos), (width - 4, y_pos)], fill=black, width=1)
     y_pos += 4
-    
-    # 右側: 天気予報（3日分） - 右端に配置
+
+    # Right panel: 3-day weather forecast
     daily = weather_data
-    weather_x = 150  # 右側に配置
-    weather_y = 20   # ヘッダーの区切り線の後
-    
+    weather_x = 150  # Right panel position
+    weather_y = 20   # Below the header divider
+
     if daily and "time" in daily:
         for i in range(min(3, len(daily["time"]))):
             date_str = daily["time"][i]
@@ -220,20 +220,20 @@ def generate_image(events, weather_data):
                 display_date = f"{date_obj.month}/{date_obj.day}({date_obj.strftime('%a')})"
             except ValueError:
                 display_date = date_str
-            
+
             weather_code = daily["weather_code"][i] if i < len(daily["weather_code"]) else 3
             emoji = WEATHER_EMOJI.get(weather_code, "☁️")
             weather_name = WEATHER_TEXT.get(weather_code, "不明")
-            
+
             max_temp = daily["temperature_2m_max"][i] if i < len(daily["temperature_2m_max"]) else "?"
             min_temp = daily["temperature_2m_min"][i] if i < len(daily["temperature_2m_min"]) else "?"
-            
-            # 天気情報を描画
+
+            # Draw weather info
             try:
-                # 絵文字アイコン（絵文字フォントで描画）
+                # Emoji icon
                 if emoji_font:
                     draw.text((weather_x, weather_y), emoji, font=emoji_font, fill=black)
-                    # 絵文字の幅を取得してテキストの開始位置を調整
+                    # Measure emoji width to offset the text start
                     try:
                         emoji_bbox = draw.textbbox((0, 0), emoji, font=emoji_font)
                         text_start_x = weather_x + int((emoji_bbox[2] - emoji_bbox[0]) * 0.6) + 2
@@ -241,50 +241,50 @@ def generate_image(events, weather_data):
                         text_start_x = weather_x + 18
                 else:
                     text_start_x = weather_x + 2
-                
-                # 日付（絵文字の右側）
+
+                # Date label (to the right of the emoji)
                 draw.text((text_start_x, weather_y), display_date, font=jp_font, fill=black)
                 weather_y += 16
-                
-                # 天気テキスト（気温）
+
+                # Weather label with temperatures
                 weather_line = f"{weather_name} {max_temp}/{min_temp}°C"
                 draw.text((weather_x, weather_y), weather_line, font=jp_font, fill=black)
                 weather_y += 16
             except Exception as e:
-                print(f"天気描画エラー: {e}", file=sys.stderr)
-    
-    # 左側: カレンダーイベント（最大5件）
+                print(f"Weather rendering error: {e}", file=sys.stderr)
+
+    # Left panel: calendar events (up to 5)
     left_x = 4
-    left_y_start = 20  # 天気情報と同じ高さに
-    
-    # イベントの表示（直近5件）
+    left_y_start = 20  # Aligned with the weather panel
+
+    # Render upcoming events (up to 5)
     event_count = 0
     y_pos = left_y_start
     for event in events:
         if event_count >= 5:
             break
-        
+
         dt_start = event.get("dtstart")
         summary = event.get("summary", "(無題)")
-        
+
         if dt_start:
-            # 日付フォーマット
+            # Format date
             date_str = dt_start.strftime("%m/%d")
             time_str = ""
             if dt_start.hour != 0 or dt_start.minute != 0:
                 time_str = dt_start.strftime("%H:%M")
-            
-            # 行の構成
+
+            # Build the display line
             if time_str:
                 line = f"{date_str} {time_str} {summary}"
             else:
                 line = f"{date_str} {summary}"
-            
-            # 改行処理（行長が制限を超えたら折り返し）
-            max_line_width = 130  # 右側の天気情報用スペースを確保
+
+            # Word-wrap when line exceeds max width
+            max_line_width = 130  # Leave space for the right-side weather panel
             wrapped_lines = []
             current_line = ""
-            
+
             for char in line:
                 test_line = current_line + char
                 try:
@@ -297,11 +297,11 @@ def generate_image(events, weather_data):
                         current_line = char
                 except Exception:
                     current_line += char
-            
+
             if current_line:
                 wrapped_lines.append(current_line)
-            
-            for wrapped_line in wrapped_lines[:2]:  # 最大2行まで
+
+            for wrapped_line in wrapped_lines[:2]:  # Up to 2 wrapped lines per event
                 if y_pos > height - 10:
                     break
                 try:
@@ -311,121 +311,121 @@ def generate_image(events, weather_data):
                 y_pos += 13
                 if y_pos > height - 10:
                     break
-        
+
         event_count += 1
-    
-    # モノクロ化（2値化）
+
+    # Convert to 1-bit monochrome for e-ink
     img_mono = img.convert("1", dither=Image.Dither.NONE)
-    
+
     return img_mono
 
 
 def send_image(device_id, api_key, image):
-    """PNG画像をbase64エンコーディングしてAPIに送信する"""
-    # PNGとしてバイト列にエクスポート
+    """Base64-encode the PNG image and send it to the device API."""
+    # Export image to PNG bytes
     img_bytes = io.BytesIO()
     image.save(img_bytes, format="PNG")
     img_bytes.seek(0)
-    
-    # base64エンコーディング
+
+    # Base64-encode
     image_b64 = base64.b64encode(img_bytes.read()).decode("utf-8")
-    
-    # APIエンドポイント
+
+    # API endpoint
     url = f"https://dot.mindreset.tech/api/authV2/open/device/{device_id}/image"
-    
+
     payload = {
         "image": image_b64,
         "border": 0,
         "ditherType": "NONE",
         "refreshNow": True
     }
-    
+
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
-    
-    # ヘッダとボディの内容を表示
-    print("\n========== API リクエスト ==========")
+
+    # Log request details
+    print("\n========== API Request ==========")
     print(f"POST {url}")
-    print("-------- ヘッダ --------")
+    print("-------- Headers --------")
     for key, value in headers.items():
         print(f"  {key}: {value}")
-    print("-------- ボディ --------")
+    print("-------- Body --------")
     print(f'  {{"image": "{image_b64[:100]}...", "border": {payload["border"]}, "ditherType": "{payload["ditherType"]}", "refreshNow": {"true" if payload["refreshNow"] else "false"}}}')
-    print("====================================\n")
-    
+    print("=================================\n")
+
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=30)
-        print(response.text)    
-        # レスポンスを表示
-        print("\n========== API レスポンス ==========")
+        print(response.text)
+        # Log response details
+        print("\n========== API Response ==========")
         print(f"Status: {response.status_code}")
-        print("-------- レスポンスヘッダ --------")
+        print("-------- Response Headers --------")
         for key, value in response.headers.items():
             print(f"  {key}: {value}")
-        print("-------- レスポンスボディ --------")
+        print("-------- Response Body --------")
         try:
             print(f"  {response.json()}")
         except Exception:
             print(f"  {response.text}")
-        print("====================================\n")
-        
+        print("==================================\n")
+
         response.raise_for_status()
-        print(f"画像送信成功: HTTP {response.status_code}")
+        print(f"Image sent successfully: HTTP {response.status_code}")
         return response
     except requests.RequestException as e:
-        print(f"画像送信に失敗しました: {e}", file=sys.stderr)
+        print(f"Failed to send image: {e}", file=sys.stderr)
         return None
 
 
 def main():
     args = parse_args()
-    
-    # 引数または環境変数から値を取得
+
+    # Resolve values from args, env vars, or interactive prompt
     ical_url = args.ical_url or os.environ.get("ICAL_URL")
     if not ical_url:
         ical_url = input("iCal URL: ").strip()
         if not ical_url:
-            print("エラー: iCal URLが指定されていません。", file=sys.stderr)
+            print("Error: iCal URL is required.", file=sys.stderr)
             sys.exit(1)
-    
+
     device_id = args.device_id or os.environ.get("DEVICE_ID")
     if not device_id:
         device_id = input("Device ID: ").strip()
         if not device_id:
-            print("エラー: Device IDが指定されていません。", file=sys.stderr)
+            print("Error: Device ID is required.", file=sys.stderr)
             sys.exit(1)
-    
+
     api_key = args.api_key or os.environ.get("API_KEY")
     if not api_key:
         api_key = input("API Key: ").strip()
         if not api_key:
-            print("エラー: API Keyが指定されていません。", file=sys.stderr)
+            print("Error: API Key is required.", file=sys.stderr)
             sys.exit(1)
-    
-    print("カレンダーイベントを取得中...")
+
+    print("Fetching calendar events...")
     events = get_calendar_events(ical_url)
-    print(f"イベント数: {len(events)}")
-    
-    print("天気予報を取得中...")
+    print(f"Events found: {len(events)}")
+
+    print("Fetching weather forecast...")
     weather_data = get_weather()
-    print(f"予報日数: {len(weather_data.get('time', []))}")
-    
-    print("画像を生成中...")
+    print(f"Forecast days: {len(weather_data.get('time', []))}")
+
+    print("Generating image...")
     image = generate_image(events, weather_data)
-    
-    # 画像を保存（デバッグ用）
+
+    # Save locally for debugging
     image.save("output.png")
-    print("画像を保存しました: output.png")
-    
-    print("画像を送信中...")
+    print("Image saved: output.png")
+
+    print("Sending image...")
     result = send_image(device_id, api_key, image)
-    
+
     if result:
-        print("完了しました！")
+        print("Done!")
     else:
-        print("画像送信に失敗しました。", file=sys.stderr)
+        print("Failed to send image.", file=sys.stderr)
         sys.exit(1)
 
 
