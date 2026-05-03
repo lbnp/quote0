@@ -48,5 +48,22 @@ pip install requests Pillow
 
 Font loading is cross-platform. `_load_font()` iterates `_EMOJI_FONT_CANDIDATES` and `_JP_FONT_CANDIDATES` (defined at module level) and returns the first match, so adding support for a new OS means appending to those lists.
 
-- **Japanese**: macOS uses Hiragino Sans (built-in); Windows uses Meiryo (built-in); Linux needs `fonts-noto-cjk`.
-- **Emoji**: Noto Emoji (`NotoEmoji-Regular.ttf`) must be installed manually on macOS/Linux. On Windows, Segoe UI Emoji is used as the fallback. See README for install commands.
+- **Japanese**: macOS uses Hiragino Sans W6 (built-in); Windows uses Meiryo (built-in); Linux tries fonts in this priority order for best e-ink legibility:
+  1. `NotoSansCJK-Black.ttc` (heaviest weight) — requires `fonts-noto-cjk-extra` on Ubuntu/Debian
+  2. `NotoSansJP-Bold.ttf/.otf` (Japan-only subset, Bold)
+  3. `NotoSansCJK-Bold.ttc` — included in `fonts-noto-cjk`
+  4. `NotoSansCJK-Regular.ttc` — fallback
+- **Emoji**: Linux tries `NotoEmoji-Regular.ttf` first, then Symbola (`fonts-symbola`). On macOS, `NotoEmoji-Regular.ttf` must be installed manually. On Windows, Segoe UI Emoji is used as the fallback.
+
+### Linux font install (Ubuntu/Debian)
+
+```bash
+# Minimum (Bold weight)
+sudo apt install fonts-noto-cjk
+
+# For Black (heaviest) weight
+sudo apt install fonts-noto-cjk-extra
+
+# For NotoEmoji monochrome
+sudo apt install fonts-noto
+```
