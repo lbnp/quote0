@@ -17,7 +17,11 @@ from PIL import Image, ImageDraw, ImageFont
 
 # Candidate font paths tried in order; first match wins.
 _EMOJI_FONT_CANDIDATES = [
-    # Ubuntu/Debian — Symbola (fonts-symbola package)
+    # Linux — NotoEmoji monochrome (fonts-noto or manually installed)
+    "/usr/share/fonts/truetype/noto/NotoEmoji-Regular.ttf",
+    "/usr/share/fonts/noto/NotoEmoji-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoEmoji[wght].ttf",
+    # Ubuntu/Debian — Symbola (fonts-symbola package, fallback)
     "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf",
     # macOS — NotoEmoji[wght].ttf (current monochrome outline font)
     os.path.expanduser("~/Library/Fonts/NotoEmoji[wght].ttf"),
@@ -39,7 +43,17 @@ _JP_FONT_CANDIDATES = [
     "/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
     # Windows built-in
     "C:/Windows/Fonts/meiryo.ttc",
-    # Linux — Bold first for better e-ink legibility (fonts-noto-cjk package)
+    # Linux — Black (heaviest) > Bold > Regular for best e-ink legibility
+    # Black weight requires fonts-noto-cjk-extra (Ubuntu/Debian) or equivalent
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Black.ttc",      # Ubuntu/Debian
+    "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Black.ttc",    # Fedora/RHEL
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Black.ttc",           # Arch
+    # NotoSansJP (Japan-only subset, fonts-noto-cjk or noto-fonts-cjk package)
+    "/usr/share/fonts/truetype/noto/NotoSansJP-Bold.ttf",        # Ubuntu/Debian
+    "/usr/share/fonts/opentype/noto/NotoSansJP-Bold.otf",        # Ubuntu/Debian alt
+    "/usr/share/fonts/google-noto/NotoSansJP-Bold.ttf",          # Fedora/RHEL
+    "/usr/share/fonts/noto/NotoSansJP-Bold.ttf",                 # Arch
+    # Bold weight (fonts-noto-cjk package)
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",       # Ubuntu/Debian
     "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Bold.ttc",     # Fedora/RHEL
     "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",            # Arch
