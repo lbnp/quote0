@@ -34,11 +34,11 @@ No build step, test suite, or linter is configured.
 
 ## Dependencies
 
-No `requirements.txt` exists. Install manually:
-
 ```bash
-pip install requests Pillow icalendar recurring_ical_events
+pip install -r requirements.txt
 ```
+
+`requirements.txt` contains: `requests`, `Pillow`, `icalendar`, `recurring-ical-events`.
 
 ## Architecture
 
