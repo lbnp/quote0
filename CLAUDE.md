@@ -16,13 +16,19 @@ python generate_image.py
 python generate_image.py --ical-url <URL> --device-id <ID> --api-key <KEY>
 
 # With environment variables
-set ICAL_URL=<url>
-set DEVICE_ID=<id>
-set API_KEY=<key>
-python generate_image.py
+ICAL_URL=<url> DEVICE_ID=<id> API_KEY=<key> python generate_image.py
+
+# With a config file (default: config.json)
+python generate_image.py --config config.json
+
+# Dry run (generate image but do not send to device)
+python generate_image.py --dry-run
+
+# Debug mode (dump raw iCal and API request/response to stdout, save output.png)
+python generate_image.py --debug
 ```
 
-Priority order for each parameter: CLI arg → environment variable → interactive prompt.
+Priority order for each parameter: CLI arg → environment variable → config.json → interactive prompt.
 
 No build step, test suite, or linter is configured.
 
@@ -31,18 +37,21 @@ No build step, test suite, or linter is configured.
 No `requirements.txt` exists. Install manually:
 
 ```bash
-pip install requests Pillow
+pip install requests Pillow icalendar recurring_ical_events
 ```
 
 ## Architecture
 
 `generate_image.py` is structured as a linear pipeline inside `main()`:
 
-1. **`parse_args()`** — argparse CLI + env var fallback + interactive prompt
-2. **`get_calendar_events(ical_url)`** — fetches and parses iCal from Google Calendar; returns list of `(date_str, summary)` tuples (up to 5 events)
-3. **`get_weather()`** — fetches 3-day forecast from Open-Meteo API (hardcoded to Tokyo 35.6762°N, 139.6503°E); returns list of `(date_str, weather_emoji, max_temp, min_temp)`
-4. **`generate_image(events, weather)`** — renders a `296×152` PIL `Image` split into left (calendar) and right (weather) panels; converts to 1-bit dithered monochrome for e-ink; saves `output.png` locally as debug output
-5. **`send_image(image, device_id, api_key)`** — base64-encodes the PNG and POSTs to the device API with Bearer auth
+1. **`parse_args()`** — argparse CLI; supports `--ical-url`, `--device-id`, `--api-key`, `--timezone` (default: `Asia/Tokyo`), `--config` (default: `config.json`), `--dry-run`, `--debug`
+2. **`load_config(path)`** — loads settings from a JSON config file (`ical_url`, `device_id`, `api_key`, `timezone`); returns empty dict if file is absent
+3. **`get_calendar_events(ical_url, tz, debug=False)`** — fetches and parses iCal from Google Calendar; expands recurring events via `recurring_ical_events`; returns list of `{"summary": str, "dtstart": datetime}` dicts for the next 90 days, sorted by start time
+4. **`get_weather(latitude, longitude, days, timezone)`** — fetches forecast from Open-Meteo API; defaults to Tokyo (35.6762°N, 139.6503°E), 3 days, `Asia/Tokyo`; returns the `daily` dict from the API response
+5. **`generate_image(events, weather_data, debug=False)`** — renders a `296×152` PIL `Image` split into left (calendar, up to 5 events) and right (weather) panels; converts to 1-bit monochrome without dithering (`Image.Dither.NONE`) for e-ink
+6. **`send_image(device_id, api_key, image, debug=False)`** — base64-encodes the PNG and POSTs to the device API with Bearer auth
+
+`output.png` is saved locally only when `--debug` or `--dry-run` is passed.
 
 ## Platform Notes
 
