@@ -43,11 +43,7 @@ _JP_FONT_CANDIDATES = [
     "/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
     # Windows built-in
     "C:/Windows/Fonts/meiryo.ttc",
-    # Linux — Black (heaviest) > Bold > Regular for best e-ink legibility
-    # Black weight requires fonts-noto-cjk-extra (Ubuntu/Debian) or equivalent
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Black.ttc",      # Ubuntu/Debian
-    "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Black.ttc",    # Fedora/RHEL
-    "/usr/share/fonts/noto-cjk/NotoSansCJK-Black.ttc",           # Arch
+    # Linux — Bold > Black > Regular for e-ink legibility
     # NotoSansJP (Japan-only subset, fonts-noto-cjk or noto-fonts-cjk package)
     "/usr/share/fonts/truetype/noto/NotoSansJP-Bold.ttf",        # Ubuntu/Debian
     "/usr/share/fonts/opentype/noto/NotoSansJP-Bold.otf",        # Ubuntu/Debian alt
@@ -57,6 +53,10 @@ _JP_FONT_CANDIDATES = [
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",       # Ubuntu/Debian
     "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Bold.ttc",     # Fedora/RHEL
     "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",            # Arch
+    # Black weight (fonts-noto-cjk-extra on Ubuntu/Debian)
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Black.ttc",      # Ubuntu/Debian
+    "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Black.ttc",    # Fedora/RHEL
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Black.ttc",           # Arch
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",    # Ubuntu/Debian fallback
     "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",  # Fedora/RHEL fallback
     "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",         # Arch fallback
@@ -258,17 +258,17 @@ def generate_image(events, weather_data, debug=False):
     draw = ImageDraw.Draw(img)
 
     # Load fonts
-    emoji_font = _load_font(_EMOJI_FONT_CANDIDATES, 14, debug=debug)
+    emoji_font = _load_font(_EMOJI_FONT_CANDIDATES, 15, debug=debug)
     if emoji_font is None:
         tried = "\n  ".join(_EMOJI_FONT_CANDIDATES)
         print(f"Warning: no emoji font found. Paths tried:\n  {tried}", file=sys.stderr)
 
-    jp_font = _load_font(_JP_FONT_CANDIDATES, 11, debug=debug)
+    jp_font = _load_font(_JP_FONT_CANDIDATES, 12, debug=debug)
     if jp_font is None:
         jp_font = ImageFont.load_default()
         tried = "\n  ".join(_JP_FONT_CANDIDATES)
         print(f"Warning: no Japanese font found, using default. Paths tried:\n  {tried}", file=sys.stderr)
-    jp_font_bold = _load_font(_JP_FONT_CANDIDATES, 12, debug=debug) or jp_font
+    jp_font_bold = _load_font(_JP_FONT_CANDIDATES, 13, debug=debug) or jp_font
 
     # Black
     black = (0, 0, 0)
