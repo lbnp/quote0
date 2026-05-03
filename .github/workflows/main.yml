@@ -15,7 +15,7 @@ jobs:
       - name: Install fonts
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends fonts-noto-cjk fonts-symbola
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk fonts-noto-cjk-extra fonts-symbola
           fc-cache -fv
       - run: pip install -r requirements.txt
       - run: python generate_image.py
